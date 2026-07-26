@@ -10,6 +10,26 @@ The original upstream branch targets Isaac Sim 4.5 and Isaac Lab 2.1.
 
 The current default configuration is a headless, motion-only smoke test. Camera, semantic segmentation, and RTX lidar can be enabled later after the base Go2 + ROS2 control path is verified.
 
+## Branch Notes: Isaac Sim 5.1 / Isaac Lab 2.3
+
+This branch is a compatibility branch for testing the project on a newer Isaac stack:
+
+- Target runtime: Isaac Sim 5.1.0, Isaac Lab 2.3.0, ROS2 Humble, Ubuntu 22.04.
+- Main reason: RTX 50-series / Blackwell GPUs may have rendering or RTX sensor issues with the original Isaac Sim 4.5 setup.
+- First validation goal: confirm Go2 simulation, ROS2 bridge, `/cmd_vel`, `/odom`, and `/pose`.
+- Sensor validation goal: re-enable camera, depth, semantic segmentation, and RTX lidar one by one after the base control loop works.
+
+Compared with the upstream Isaac Sim 4.5 branch, this branch changes:
+
+- `README.md`: documents the Isaac Sim 5.1 / Isaac Lab 2.3 target and Ubuntu run commands.
+- `cfg/sim.yaml`: uses a conservative headless, sensor-disabled default for the first smoke test.
+- `isaac_go2_ros2.py`: supports `HEADLESS` / `ENABLE_CAMERAS` environment flags, prefers conda PyTorch packages, and skips GUI-only logic in headless mode.
+- `env/sim_env.py`: makes `omni.replicator.core` optional for environment creation, so semantic labels do not block motion-only runs.
+- `go2/go2_sensors.py`: loads camera and RTX lidar dependencies only when those sensors are enabled.
+- `ros2/go2_ros2_bridge.py`: supports both newer and older ROS2 bridge extension names and delays camera/semantic dependencies until needed.
+
+More details are in `docs/isaacsim_5_1_lab_2_3_migration.md`.
+
 Please check ```isaacsim-4.2``` branch for isaac sim 4.2 version.
 
 Please check ```isaacsim-4.5-docker``` branch if you want to run inside a docker.
@@ -44,6 +64,14 @@ git clone https://github.com/coo7-lang/isaac-go2-ros2.git
 ```
 
 ## Run Unitree Go2 Simulation 
+Before running, make sure the branch is checked out:
+
+```bash
+git clone https://github.com/coo7-lang/isaac-go2-ros2.git
+cd isaac-go2-ros2
+git checkout isaacsim-5.1-lab-2.3
+```
+
 For a first smoke test on RTX 50-series laptops, start without GUI and without RTX sensors:
 
 ```bash
@@ -57,6 +85,21 @@ HEADLESS=1 ENABLE_CAMERAS=0 python isaac_go2_ros2.py --headless
 
 The default `cfg/sim.yaml` keeps `sensor.enable_lidar` and `sensor.enable_camera` disabled. This verifies the base robot simulation and ROS2 motion topics first.
 
+In another terminal, check whether ROS2 topics are published:
+
+```bash
+source /opt/ros/humble/setup.bash
+ros2 topic list
+ros2 topic echo /unitree_go2/odom
+```
+
+Send a simple velocity command:
+
+```bash
+source /opt/ros/humble/setup.bash
+ros2 topic pub /unitree_go2/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" --once
+```
+
 To run the full GUI/sensor mode after the base smoke test passes, enable the corresponding sensor flags in `cfg/sim.yaml` and run:
 
 ```bash
@@ -66,6 +109,18 @@ python isaac_go2_ros2.py
 Once the simulation is loaded, the robot can be teleoperated by the keyboard:
 
 ```W```: Forward, ```A```: Left, ```S```: Backward, ```D```: Right, ```Z```: Left Turn, ```C```: Right Turn.
+
+## Code Reading Guide
+
+Suggested reading order for this branch:
+
+- `isaac_go2_ros2.py`: main entry point. It launches Isaac Sim, creates the Go2 environment, adds optional sensors, starts ROS2, and runs the simulation loop.
+- `cfg/sim.yaml`: runtime configuration. This controls environment name, number of robots, frequency, camera/lidar flags, and headless-friendly defaults.
+- `go2/go2_env.py`: Isaac Lab environment definition for the Unitree Go2 robot, observations, actions, command interface, and simulation settings.
+- `go2/go2_ctrl.py`: low-level RL policy loading and `/cmd_vel` command handling.
+- `go2/go2_sensors.py`: optional camera and RTX lidar creation.
+- `ros2/go2_ros2_bridge.py`: ROS2 publishers/subscribers for command, odometry, pose, camera, semantic segmentation, and lidar topics.
+- `env/sim_env.py`: warehouse and obstacle environment loading.
 
 
 https://github.com/user-attachments/assets/7abb41fd-26f7-4e5d-bc7f-98ee10467a6a
