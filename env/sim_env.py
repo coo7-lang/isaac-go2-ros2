@@ -6,9 +6,20 @@ except ModuleNotFoundError:
 from isaaclab.terrains import TerrainImporterCfg, TerrainImporter
 from isaaclab.terrains import TerrainGeneratorCfg
 from env.terrain_cfg import HfUniformDiscreteObstaclesTerrainCfg
-import omni.replicator.core as rep
+
+
+def _get_replicator():
+    try:
+        import omni.replicator.core as rep
+    except ModuleNotFoundError:
+        return None
+    return rep
 
 def add_semantic_label():
+    rep = _get_replicator()
+    if rep is None:
+        print("[sim_env] omni.replicator unavailable; skip semantic labels.")
+        return
     ground_plane = rep.get.prims("/World/GroundPlane")
     with ground_plane:
     # Add a semantic label

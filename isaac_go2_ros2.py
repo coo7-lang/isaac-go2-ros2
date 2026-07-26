@@ -1,10 +1,33 @@
 import os
 import hydra
 import rclpy
-import torch
 import time
 import math
 import argparse
+
+
+def _env_flag(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _prefer_conda_torch():
+    conda_prefix = os.environ.get("CONDA_PREFIX")
+    if not conda_prefix:
+        return
+    import site
+    import sys
+
+    for path in site.getsitepackages([conda_prefix]):
+        if path in sys.path:
+            sys.path.remove(path)
+        sys.path.insert(0, path)
+
+
+_prefer_conda_torch()
+import torch
 from isaaclab.app import AppLauncher
 
 # add argparse arguments
@@ -15,13 +38,16 @@ AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
 args_cli = parser.parse_args()
 
+if hasattr(args_cli, "headless"):
+    args_cli.headless = _env_flag("HEADLESS", args_cli.headless)
+if hasattr(args_cli, "enable_cameras") and os.environ.get("ENABLE_CAMERAS") is not None:
+    args_cli.enable_cameras = _env_flag("ENABLE_CAMERAS", args_cli.enable_cameras)
+
 # launch omniverse app
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 """Rest everything follows."""
-
-import torch
 
 from go2.go2_env import Go2RSLEnvCfg, camera_follow
 import env.sim_env as sim_env
@@ -34,6 +60,7 @@ import ros2.go2_ros2_bridge as go2_ros2_bridge
 FILE_PATH = os.path.join(os.path.dirname(__file__), "cfg")
 @hydra.main(config_path=FILE_PATH, config_name="sim", version_base=None)
 def run_simulator(cfg):
+    is_headless = getattr(args_cli, "headless", False)
 
     # Go2 Environment setup
     go2_env_cfg = Go2RSLEnvCfg()
@@ -62,13 +89,16 @@ def run_simulator(cfg):
 
     # Sensor setup
     sm = go2_sensors.SensorManager(cfg.num_envs)
-    lidar_annotators = sm.add_rtx_lidar()
-    cameras = sm.add_camera(cfg.freq)
+    lidar_annotators = sm.add_rtx_lidar() if cfg.sensor.enable_lidar else []
+    cameras = sm.add_camera(cfg.freq) if cfg.sensor.enable_camera else []
+    if is_headless and (cfg.sensor.enable_camera or cfg.sensor.enable_lidar):
+        print("[isaac_go2_ros2] Headless sensor mode enabled. If Replicator/RTX fails, rerun with sensor flags disabled.")
 
     # Keyboard control
-    system_input = carb.input.acquire_input_interface()
-    system_input.subscribe_to_keyboard_events(
-        omni.appwindow.get_default_app_window().get_keyboard(), go2_ctrl.sub_keyboard_event)
+    if not is_headless:
+        system_input = carb.input.acquire_input_interface()
+        system_input.subscribe_to_keyboard_events(
+            omni.appwindow.get_default_app_window().get_keyboard(), go2_ctrl.sub_keyboard_event)
     
     # ROS2 Bridge
     rclpy.init()
@@ -91,7 +121,7 @@ def run_simulator(cfg):
             rclpy.spin_once(dm)
 
             # Camera follow
-            if (cfg.camera_follow):
+            if (cfg.camera_follow and not is_headless):
                 camera_follow(env)
 
             # limit loop time

@@ -1,11 +1,14 @@
 #  Isaac Sim Unitree Go2 ROS2
 [![Python](https://img.shields.io/badge/python-3.10-blue.svg)](https://docs.python.org/3/whatsnew/3.10.html)
 [![ROS2](https://img.shields.io/badge/ROS2-Humble-orange.svg)](https://docs.ros.org/en/humble/index.html)
-[![IsaacSim](https://img.shields.io/badge/IsaacSim-4.5.0-red.svg)](https://docs.omniverse.nvidia.com/isaacsim/latest/overview.html)
-[![IsaacLab](https://img.shields.io/badge/IsaacLab-2.1.0-purple.svg)](https://docs.omniverse.nvidia.com/isaacsim/latest/overview.html)
+[![IsaacSim](https://img.shields.io/badge/IsaacSim-5.1.0-red.svg)](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/index.html)
+[![IsaacLab](https://img.shields.io/badge/IsaacLab-2.3.0-purple.svg)](https://isaac-sim.github.io/IsaacLab/)
 [![Linux platform](https://img.shields.io/badge/platform-Ubuntu--22.04-green.svg)](https://releases.ubuntu.com/22.04/)
 
-This branch supports isaac sim 4.5 and isaaclab 2.1.
+This fork targets Isaac Sim 5.1.0 and Isaac Lab 2.3.0 for RTX 50-series / Blackwell machines.
+The original upstream branch targets Isaac Sim 4.5 and Isaac Lab 2.1.
+
+The current default configuration is a headless, motion-only smoke test. Camera, semantic segmentation, and RTX lidar can be enabled later after the base Go2 + ROS2 control path is verified.
 
 Please check ```isaacsim-4.2``` branch for isaac sim 4.2 version.
 
@@ -23,26 +26,40 @@ Welcome to the Isaac Sim Unitree Go2 repository! This repository provides a Unit
 
 
 ## Installation Guide
-**Step 0:** Install [Isaac Sim 4.5](https://docs.isaacsim.omniverse.nvidia.com/4.5.0/installation/download.html) (Download and extract contents in `${HOME}/isaacsim`)
+**Step 0:** Install [Isaac Sim 5.1.0](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/download.html) (Download and extract contents in `${HOME}/isaacsim`)
 
-**Step I:** Please follow the [Isaac Lab official documentation](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/binaries_installation.html) to install Isaac Lab 2.1.0.
+**Step I:** Please follow the [Isaac Lab official documentation](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/binaries_installation.html) to install Isaac Lab 2.3.0.
 
 **Step II:** Please install [ROS2 Humble](https://docs.ros.org/en/humble/index.html) with the official installation guide.
 
 **Step III:** Install the prerequisite C extension in the conda environment. [reference link](https://stackoverflow.com/questions/58424974/anaconda-importerror-usr-lib64-libstdc-so-6-version-glibcxx-3-4-21-not-fo)
-```
+```bash
 # default conda env for Isaac Lab
-conda activate env_isaaclab      
+conda activate isaaclab
 ```
 
 **Step IV:** Clone this repo to your local directory.
-```
-git clone https://github.com/Zhefan-Xu/isaac-go2-ros2.git
+```bash
+git clone https://github.com/coo7-lang/isaac-go2-ros2.git
 ```
 
 ## Run Unitree Go2 Simulation 
-To run the simulation, please use the following command:
+For a first smoke test on RTX 50-series laptops, start without GUI and without RTX sensors:
+
+```bash
+conda activate isaaclab
+source /opt/ros/humble/setup.bash
+cd ~/isaacsim
+source setup_conda_env.sh
+cd /path/to/isaac-go2-ros2
+HEADLESS=1 ENABLE_CAMERAS=0 python isaac_go2_ros2.py --headless
 ```
+
+The default `cfg/sim.yaml` keeps `sensor.enable_lidar` and `sensor.enable_camera` disabled. This verifies the base robot simulation and ROS2 motion topics first.
+
+To run the full GUI/sensor mode after the base smoke test passes, enable the corresponding sensor flags in `cfg/sim.yaml` and run:
+
+```bash
 conda activate isaaclab
 python isaac_go2_ros2.py
 ```

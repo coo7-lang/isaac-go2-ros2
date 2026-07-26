@@ -7,19 +7,39 @@ from sensor_msgs_py import point_cloud2
 from tf2_ros import TransformBroadcaster
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 import numpy as np
-from cv_bridge import CvBridge
-import cv2
 import omni
 import omni.graph.core as og
-import omni.replicator.core as rep
-import omni.syntheticdata._syntheticdata as sd
 import subprocess
 import time
 import go2.go2_ctrl as go2_ctrl
 
 ext_manager = omni.kit.app.get_app().get_extension_manager()
-ext_manager.set_extension_enabled_immediate("omni.isaac.ros2_bridge", True)
-from isaacsim.ros2.bridge import collect_namespace, read_camera_info
+for ext_name in ("isaacsim.ros2.bridge", "omni.isaac.ros2_bridge"):
+    try:
+        ext_manager.set_extension_enabled_immediate(ext_name, True)
+        break
+    except Exception:
+        continue
+
+
+def _get_replicator_modules():
+    try:
+        import omni.replicator.core as rep
+        import omni.syntheticdata._syntheticdata as sd
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Camera/depth/semantic ROS publishers require omni.replicator.core. "
+            "Disable sensor.enable_camera for a headless motion-only smoke test."
+        ) from exc
+    return rep, sd
+
+
+def _read_camera_info(render_product_path):
+    try:
+        from isaacsim.ros2.bridge import read_camera_info
+    except ModuleNotFoundError:
+        from omni.isaac.ros2_bridge import read_camera_info
+    return read_camera_info(render_product_path=render_product_path)
 
 
 class RobotDataManager(Node):
@@ -323,6 +343,9 @@ class RobotDataManager(Node):
         go2_ctrl.base_vel_cmd_input[env_idx][2] = msg.angular.z
     
     def semantic_segmentation_callback(self, img, env_idx):
+        from cv_bridge import CvBridge
+        import cv2
+
         bridge = CvBridge()
         semantic_image = bridge.imgmsg_to_cv2(img, desired_encoding='passthrough')
         semantic_image_normalized = (semantic_image / semantic_image.max() * 255).astype(np.uint8)
@@ -413,6 +436,7 @@ class RobotDataManager(Node):
             )
 
     def pub_color_image(self):
+        rep, sd = _get_replicator_modules()
         for i in range(self.num_envs):
             # The following code will link the camera's render product and publish the data to the specified topic name.
             render_product = self.cameras[i]._render_product_path
@@ -444,6 +468,7 @@ class RobotDataManager(Node):
             og.Controller.attribute(gate_path + ".inputs:step").set(step_size)
 
     def pub_depth_image(self):
+        rep, sd = _get_replicator_modules()
         for i in range(self.num_envs):
             # The following code will link the camera's render product and publish the data to the specified topic name.
             render_product = self.cameras[i]._render_product_path
@@ -476,6 +501,7 @@ class RobotDataManager(Node):
             og.Controller.attribute(gate_path + ".inputs:step").set(step_size)
 
     def pub_semantic_image(self):
+        rep, sd = _get_replicator_modules()
         for i in range(self.num_envs):
             # The following code will link the camera's render product and publish the data to the specified topic name.
             render_product = self.cameras[i]._render_product_path
@@ -520,6 +546,7 @@ class RobotDataManager(Node):
             og.Controller.attribute(gate_path + ".inputs:step").set(step_size)
 
     def pub_cam_depth_cloud(self):
+        rep, sd = _get_replicator_modules()
         for i in range(self.num_envs):
             # The following code will link the camera's render product and publish the data to the specified topic name.
             render_product = self.cameras[i]._render_product_path
@@ -556,6 +583,7 @@ class RobotDataManager(Node):
             og.Controller.attribute(gate_path + ".inputs:step").set(step_size)   
 
     def publish_camera_info(self):
+        rep, _ = _get_replicator_modules()
         for i in range(self.num_envs):
             # The following code will link the camera's render product and publish the data to the specified topic name.
             render_product = self.cameras[i]._render_product_path
@@ -569,7 +597,7 @@ class RobotDataManager(Node):
             frame_id = self.cameras[i].prim_path.split("/")[-1] # This matches what the TF tree is publishing.
 
             writer = rep.writers.get("ROS2PublishCameraInfo")
-            camera_info = read_camera_info(render_product_path=render_product)
+            camera_info = _read_camera_info(render_product)
             writer.initialize(
                 frameId=frame_id,
                 nodeNamespace=node_namespace,
