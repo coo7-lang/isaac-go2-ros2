@@ -8,7 +8,7 @@
 This fork targets Isaac Sim 5.1.0 and Isaac Lab 2.3.0 for RTX 50-series / Blackwell machines.
 The original upstream branch targets Isaac Sim 4.5 and Isaac Lab 2.1.
 
-The current default configuration is a headless, motion-only smoke test. Camera, semantic segmentation, and RTX lidar can be enabled later after the base Go2 + ROS2 control path is verified.
+The default configuration now aims to restore the upstream full feature set on Isaac Sim 5.1: Go2 motion control, ROS2 bridge, RGB camera, depth image, semantic segmentation, and RTX lidar. A separate `cfg/sim_motion_only.yaml` is kept as a fallback smoke-test config when debugging startup or sensor issues.
 
 ## Branch Notes: Isaac Sim 5.1 / Isaac Lab 2.3
 
@@ -17,12 +17,14 @@ This branch is a compatibility branch for testing the project on a newer Isaac s
 - Target runtime: Isaac Sim 5.1.0, Isaac Lab 2.3.0, ROS2 Humble, Ubuntu 22.04.
 - Main reason: RTX 50-series / Blackwell GPUs may have rendering or RTX sensor issues with the original Isaac Sim 4.5 setup.
 - First validation goal: confirm Go2 simulation, ROS2 bridge, `/cmd_vel`, `/odom`, and `/pose`.
-- Sensor validation goal: re-enable camera, depth, semantic segmentation, and RTX lidar one by one after the base control loop works.
+- Full-feature validation goal: confirm RGB camera, depth, semantic segmentation, RTX lidar, and RViz topics on Isaac Sim 5.1.
+- Fallback validation goal: use `cfg/sim_motion_only.yaml` if the full sensor stack fails, then re-enable sensors one by one.
 
 Compared with the upstream Isaac Sim 4.5 branch, this branch changes:
 
 - `README.md`: documents the Isaac Sim 5.1 / Isaac Lab 2.3 target and Ubuntu run commands.
-- `cfg/sim.yaml`: uses a conservative headless, sensor-disabled default for the first smoke test.
+- `cfg/sim.yaml`: restores the upstream-style full sensor default for Isaac Sim 5.1 validation.
+- `cfg/sim_motion_only.yaml`: keeps a conservative sensor-disabled fallback config for startup debugging.
 - `isaac_go2_ros2.py`: supports `HEADLESS` / `ENABLE_CAMERAS` environment flags, prefers conda PyTorch packages, and skips GUI-only logic in headless mode.
 - `env/sim_env.py`: makes `omni.replicator.core` optional for environment creation, so semantic labels do not block motion-only runs.
 - `go2/go2_sensors.py`: loads camera and RTX lidar dependencies only when those sensors are enabled.
@@ -72,7 +74,7 @@ cd isaac-go2-ros2
 git checkout isaacsim-5.1-lab-2.3
 ```
 
-For a first smoke test on RTX 50-series laptops, start without GUI and without RTX sensors:
+For full-feature validation, start with the default config:
 
 ```bash
 conda activate isaaclab
@@ -80,10 +82,30 @@ source /opt/ros/humble/setup.bash
 cd ~/isaacsim
 source setup_conda_env.sh
 cd /path/to/isaac-go2-ros2
-HEADLESS=1 ENABLE_CAMERAS=0 python isaac_go2_ros2.py --headless
+python isaac_go2_ros2.py
 ```
 
-The default `cfg/sim.yaml` keeps `sensor.enable_lidar` and `sensor.enable_camera` disabled. This verifies the base robot simulation and ROS2 motion topics first.
+If GUI is unstable but the sensor stack should still be tested, run headless with cameras enabled:
+
+```bash
+conda activate isaaclab
+source /opt/ros/humble/setup.bash
+cd ~/isaacsim
+source setup_conda_env.sh
+cd /path/to/isaac-go2-ros2
+HEADLESS=1 ENABLE_CAMERAS=1 python isaac_go2_ros2.py --headless
+```
+
+If startup or RTX sensor initialization fails, run the motion-only fallback:
+
+```bash
+conda activate isaaclab
+source /opt/ros/humble/setup.bash
+cd ~/isaacsim
+source setup_conda_env.sh
+cd /path/to/isaac-go2-ros2
+HEADLESS=1 ENABLE_CAMERAS=0 python isaac_go2_ros2.py --headless --config-name sim_motion_only
+```
 
 In another terminal, check whether ROS2 topics are published:
 
@@ -100,12 +122,6 @@ source /opt/ros/humble/setup.bash
 ros2 topic pub /unitree_go2/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" --once
 ```
 
-To run the full GUI/sensor mode after the base smoke test passes, enable the corresponding sensor flags in `cfg/sim.yaml` and run:
-
-```bash
-conda activate isaaclab
-python isaac_go2_ros2.py
-```
 Once the simulation is loaded, the robot can be teleoperated by the keyboard:
 
 ```W```: Forward, ```A```: Left, ```S```: Backward, ```D```: Right, ```Z```: Left Turn, ```C```: Right Turn.

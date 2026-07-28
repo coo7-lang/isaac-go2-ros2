@@ -36,7 +36,7 @@ parser = argparse.ArgumentParser(description="Tutorial on running the cartpole R
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
-args_cli = parser.parse_args()
+args_cli, _ = parser.parse_known_args()
 
 if hasattr(args_cli, "headless"):
     args_cli.headless = _env_flag("HEADLESS", args_cli.headless)
