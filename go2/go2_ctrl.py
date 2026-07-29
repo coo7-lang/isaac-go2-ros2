@@ -1,4 +1,5 @@
 import os
+import copy
 import torch
 import carb
 import gymnasium as gym
@@ -68,12 +69,14 @@ def get_rsl_flat_policy(cfg):
     env = RslRlVecEnvWrapper(env)
 
     # Low level control: rsl control policy
-    agent_cfg: RslRlOnPolicyRunnerCfg = unitree_go2_flat_cfg
-    ckpt_path = get_checkpoint_path(log_path=os.path.abspath("ckpts"), 
-                                    run_dir=agent_cfg["load_run"], 
+    agent_cfg: RslRlOnPolicyRunnerCfg = copy.deepcopy(unitree_go2_flat_cfg)
+    agent_cfg["device"] = cfg.sim.device
+    agent_cfg.setdefault("obs_groups", {"policy": ["policy"], "critic": ["policy"]})
+    ckpt_path = get_checkpoint_path(log_path=os.path.abspath("ckpts"),
+                                    run_dir=agent_cfg["load_run"],
                                     checkpoint=agent_cfg["load_checkpoint"])
     ppo_runner = OnPolicyRunner(env, agent_cfg, log_dir=None, device=agent_cfg["device"])
-    ppo_runner.load(ckpt_path)
+    ppo_runner.load(ckpt_path, map_location=agent_cfg["device"])
     policy = ppo_runner.get_inference_policy(device=agent_cfg["device"])
     return env, policy
 
@@ -82,11 +85,13 @@ def get_rsl_rough_policy(cfg):
     env = RslRlVecEnvWrapper(env)
 
     # Low level control: rsl control policy
-    agent_cfg: RslRlOnPolicyRunnerCfg = unitree_go2_rough_cfg
-    ckpt_path = get_checkpoint_path(log_path=os.path.abspath("ckpts"), 
-                                    run_dir=agent_cfg["load_run"], 
+    agent_cfg: RslRlOnPolicyRunnerCfg = copy.deepcopy(unitree_go2_rough_cfg)
+    agent_cfg["device"] = cfg.sim.device
+    agent_cfg.setdefault("obs_groups", {"policy": ["policy"], "critic": ["policy"]})
+    ckpt_path = get_checkpoint_path(log_path=os.path.abspath("ckpts"),
+                                    run_dir=agent_cfg["load_run"],
                                     checkpoint=agent_cfg["load_checkpoint"])
     ppo_runner = OnPolicyRunner(env, agent_cfg, log_dir=None, device=agent_cfg["device"])
-    ppo_runner.load(ckpt_path)
+    ppo_runner.load(ckpt_path, map_location=agent_cfg["device"])
     policy = ppo_runner.get_inference_policy(device=agent_cfg["device"])
     return env, policy

@@ -20,15 +20,21 @@ class SensorManager:
                 "IsaacSensorCreateRtxLidar",
                 path="/lidar",
                 parent=f"/World/envs/env_{env_idx}/Go2/base",
-                config="Hesai_XT32_SD10",
+                config="HESAI_XT32_SD10",
                 # config="Velodyne_VLS128",
                 translation=(0.2, 0, 0.2),
                 orientation=Gf.Quatd(1.0, 0.0, 0.0, 0.0),  # Gf.Quatd is w,i,j,k
+                **{"omni:sensor:Core:outputFrameOfReference": "SENSOR"},
             )
 
-            annotator = rep.AnnotatorRegistry.get_annotator("RtxSensorCpuIsaacCreateRTXLidarScanBuffer")
-            hydra_texture = rep.create.render_product(sensor.GetPath(), [1, 1], name="Isaac")
-            annotator.attach(hydra_texture.path)
+            annotator = rep.AnnotatorRegistry.get_annotator("IsaacExtractRTXSensorPointCloudNoAccumulator")
+            hydra_texture = rep.create.render_product(
+                sensor.GetPath(),
+                [32, 32],
+                name="Isaac",
+                render_vars=["GenericModelOutput", "RtxSensorMetadata"],
+            )
+            annotator.attach([hydra_texture.path])
             lidar_annotators.append(annotator)
         return lidar_annotators
 

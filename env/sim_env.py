@@ -15,7 +15,9 @@ def _get_replicator():
         return None
     return rep
 
-def add_semantic_label():
+def add_semantic_label(enable_semantic=False):
+    if not enable_semantic:
+        return
     rep = _get_replicator()
     if rep is None:
         print("[sim_env] omni.replicator unavailable; skip semantic labels.")
@@ -25,8 +27,8 @@ def add_semantic_label():
     # Add a semantic label
         rep.modify.semantics([("class", "floor")])
 
-def create_obstacle_sparse_env():
-    add_semantic_label()
+def create_obstacle_sparse_env(enable_semantic=False):
+    add_semantic_label(enable_semantic)
     # Terrain
     terrain = TerrainImporterCfg(
         prim_path="/World/obstacleTerrain",
@@ -50,8 +52,8 @@ def create_obstacle_sparse_env():
     )
     TerrainImporter(terrain) 
 
-def create_obstacle_medium_env():
-    add_semantic_label()
+def create_obstacle_medium_env(enable_semantic=False):
+    add_semantic_label(enable_semantic)
     # Terrain
     terrain = TerrainImporterCfg(
         prim_path="/World/obstacleTerrain",
@@ -76,8 +78,8 @@ def create_obstacle_medium_env():
     TerrainImporter(terrain) 
 
 
-def create_obstacle_dense_env():
-    add_semantic_label()
+def create_obstacle_dense_env(enable_semantic=False):
+    add_semantic_label(enable_semantic)
     # Terrain
     terrain = TerrainImporterCfg(
         prim_path="/World/obstacleTerrain",
@@ -101,48 +103,48 @@ def create_obstacle_dense_env():
     )
     TerrainImporter(terrain) 
 
-def create_warehouse_env():
-    add_semantic_label()
+def create_warehouse_env(enable_semantic=False):
+    add_semantic_label(enable_semantic)
     assets_root_path = nucleus_utils.get_assets_root_path()
     prim = get_prim_at_path("/World/Warehouse")
     prim = define_prim("/World/Warehouse", "Xform")
     asset_path = assets_root_path+"/Isaac/Environments/Simple_Warehouse/warehouse.usd"
     prim.GetReferences().AddReference(asset_path)
 
-def create_warehouse_forklifts_env():
-    add_semantic_label()
+def create_warehouse_forklifts_env(enable_semantic=False):
+    add_semantic_label(enable_semantic)
     assets_root_path = nucleus_utils.get_assets_root_path()
     prim = get_prim_at_path("/World/Warehouse")
     prim = define_prim("/World/Warehouse", "Xform")
     asset_path = assets_root_path+"/Isaac/Environments/Simple_Warehouse/warehouse_with_forklifts.usd"
     prim.GetReferences().AddReference(asset_path)
 
-def create_warehouse_shelves_env():
-    add_semantic_label()
+def create_warehouse_shelves_env(enable_semantic=False):
+    add_semantic_label(enable_semantic)
     assets_root_path = nucleus_utils.get_assets_root_path()
     prim = get_prim_at_path("/World/Warehouse")
     prim = define_prim("/World/Warehouse", "Xform")
     asset_path = assets_root_path+"/Isaac/Environments/Simple_Warehouse/warehouse_multiple_shelves.usd"
     prim.GetReferences().AddReference(asset_path)
 
-def create_full_warehouse_env():
-    add_semantic_label()
+def create_full_warehouse_env(enable_semantic=False):
+    add_semantic_label(enable_semantic)
     assets_root_path = nucleus_utils.get_assets_root_path()
     prim = get_prim_at_path("/World/Warehouse")
     prim = define_prim("/World/Warehouse", "Xform")
     asset_path = assets_root_path+"/Isaac/Environments/Simple_Warehouse/full_warehouse.usd"
     prim.GetReferences().AddReference(asset_path)
 
-def create_hospital_env():
-    add_semantic_label()
+def create_hospital_env(enable_semantic=False):
+    add_semantic_label(enable_semantic)
     assets_root_path = nucleus_utils.get_assets_root_path()
     prim = get_prim_at_path("/World/Hospital")
     prim = define_prim("/World/Hospital", "Xform")
     asset_path = assets_root_path+"/Isaac/Environments/Hospital/hospital.usd"
     prim.GetReferences().AddReference(asset_path)
 
-def create_office_env():
-    add_semantic_label()
+def create_office_env(enable_semantic=False):
+    add_semantic_label(enable_semantic)
     assets_root_path = nucleus_utils.get_assets_root_path()
     prim = get_prim_at_path("/World/Office")
     prim = define_prim("/World/Office", "Xform")

@@ -1,41 +1,16 @@
-#  Isaac Sim Unitree Go2 ROS2
-[![Python](https://img.shields.io/badge/python-3.10-blue.svg)](https://docs.python.org/3/whatsnew/3.10.html)
+# Isaac Sim Unitree Go2 ROS2
+
+[![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://docs.python.org/3/whatsnew/3.11.html)
 [![ROS2](https://img.shields.io/badge/ROS2-Humble-orange.svg)](https://docs.ros.org/en/humble/index.html)
 [![IsaacSim](https://img.shields.io/badge/IsaacSim-5.1.0-red.svg)](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/index.html)
 [![IsaacLab](https://img.shields.io/badge/IsaacLab-2.3.0-purple.svg)](https://isaac-sim.github.io/IsaacLab/)
 [![Linux platform](https://img.shields.io/badge/platform-Ubuntu--22.04-green.svg)](https://releases.ubuntu.com/22.04/)
 
-This fork targets Isaac Sim 5.1.0 and Isaac Lab 2.3.0 for RTX 50-series / Blackwell machines.
-The original upstream branch targets Isaac Sim 4.5 and Isaac Lab 2.1.
+This branch supports Isaac Sim 5.1.0 and Isaac Lab 2.3.0.
 
-The current default configuration is a headless, motion-only smoke test. Camera, semantic segmentation, and RTX lidar can be enabled later after the base Go2 + ROS2 control path is verified.
+Please check the `isaacsim-4.5` branch for the original Isaac Sim 4.5 / Isaac Lab 2.1 version.
 
-## Branch Notes: Isaac Sim 5.1 / Isaac Lab 2.3
-
-This branch is a compatibility branch for testing the project on a newer Isaac stack:
-
-- Target runtime: Isaac Sim 5.1.0, Isaac Lab 2.3.0, ROS2 Humble, Ubuntu 22.04.
-- Main reason: RTX 50-series / Blackwell GPUs may have rendering or RTX sensor issues with the original Isaac Sim 4.5 setup.
-- First validation goal: confirm Go2 simulation, ROS2 bridge, `/cmd_vel`, `/odom`, and `/pose`.
-- Sensor validation goal: re-enable camera, depth, semantic segmentation, and RTX lidar one by one after the base control loop works.
-
-Compared with the upstream Isaac Sim 4.5 branch, this branch changes:
-
-- `README.md`: documents the Isaac Sim 5.1 / Isaac Lab 2.3 target and Ubuntu run commands.
-- `cfg/sim.yaml`: uses a conservative headless, sensor-disabled default for the first smoke test.
-- `isaac_go2_ros2.py`: supports `HEADLESS` / `ENABLE_CAMERAS` environment flags, prefers conda PyTorch packages, and skips GUI-only logic in headless mode.
-- `env/sim_env.py`: makes `omni.replicator.core` optional for environment creation, so semantic labels do not block motion-only runs.
-- `go2/go2_sensors.py`: loads camera and RTX lidar dependencies only when those sensors are enabled.
-- `ros2/go2_ros2_bridge.py`: supports both newer and older ROS2 bridge extension names and delays camera/semantic dependencies until needed.
-
-More details are in `docs/isaacsim_5_1_lab_2_3_migration.md`.
-
-Please check ```isaacsim-4.2``` branch for isaac sim 4.2 version.
-
-Please check ```isaacsim-4.5-docker``` branch if you want to run inside a docker.
-
-Welcome to the Isaac Sim Unitree Go2 repository! This repository provides a Unitree Go2 quadruped robot simulation, leveraging the Isaac Sim/Isaac Lab framework and integrating seamlessly with a ROS 2 interface. It offers a flexible platform for testing navigation, decision-making, and other autonomous tasks in various scenarios.
-
+Welcome to the Isaac Sim Unitree Go2 repository! This repository provides a Unitree Go2 quadruped robot simulation, leveraging the Isaac Sim / Isaac Lab framework and integrating with a ROS 2 interface. It offers a flexible platform for testing navigation, decision-making, sensors, and other autonomous tasks in different scenarios.
 
 <table>
   <tr>
@@ -44,27 +19,22 @@ Welcome to the Isaac Sim Unitree Go2 repository! This repository provides a Unit
   </tr>
 </table>
 
-
 ## Installation Guide
-**Step 0:** Install [Isaac Sim 5.1.0](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/download.html) (Download and extract contents in `${HOME}/isaacsim`)
 
-**Step I:** Please follow the [Isaac Lab official documentation](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/binaries_installation.html) to install Isaac Lab 2.3.0.
+**Step 0:** Install [Isaac Sim 5.1.0](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/download.html) and extract it to `${HOME}/isaacsim`.
 
-**Step II:** Please install [ROS2 Humble](https://docs.ros.org/en/humble/index.html) with the official installation guide.
+**Step I:** Install [Isaac Lab 2.3.0](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/binaries_installation.html).
 
-**Step III:** Install the prerequisite C extension in the conda environment. [reference link](https://stackoverflow.com/questions/58424974/anaconda-importerror-usr-lib64-libstdc-so-6-version-glibcxx-3-4-21-not-fo)
+**Step II:** Install [ROS2 Humble](https://docs.ros.org/en/humble/index.html).
+
+**Step III:** Activate the Isaac Lab conda environment. On the validated local machine this environment is named `lab`:
+
 ```bash
-# default conda env for Isaac Lab
-conda activate isaaclab
+source /home/lion/miniconda3/etc/profile.d/conda.sh
+conda activate lab
 ```
 
-**Step IV:** Clone this repo to your local directory.
-```bash
-git clone https://github.com/coo7-lang/isaac-go2-ros2.git
-```
-
-## Run Unitree Go2 Simulation 
-Before running, make sure the branch is checked out:
+**Step IV:** Clone this repo:
 
 ```bash
 git clone https://github.com/coo7-lang/isaac-go2-ros2.git
@@ -72,118 +42,185 @@ cd isaac-go2-ros2
 git checkout isaacsim-5.1-lab-2.3
 ```
 
-For a first smoke test on RTX 50-series laptops, start without GUI and without RTX sensors:
+## Important Environment Note
+
+Keep the Isaac Sim Python 3.11 process separate from the system ROS2 Humble Python 3.10 environment.
+
+- Isaac Sim / Isaac Lab process: use the `lab` conda environment and `/home/lion/isaacsim/setup_conda_env.sh`.
+- ROS2 CLI / RViz terminal: source `/opt/ros/humble/setup.bash` in a separate terminal.
+
+Do **not** source `/opt/ros/humble/setup.bash` inside the Isaac Sim Python process. Mixing ROS2 Humble Python 3.10 packages into Isaac's Python 3.11 process can cause `rclpy`, `cv_bridge`, or shared-library ABI issues.
+
+The checked-in launcher follows this rule automatically.
+
+## Run Unitree Go2 Simulation
+
+### Headless smoke test
 
 ```bash
-conda activate isaaclab
-source /opt/ros/humble/setup.bash
-cd ~/isaacsim
-source setup_conda_env.sh
-cd /path/to/isaac-go2-ros2
-HEADLESS=1 ENABLE_CAMERAS=0 python isaac_go2_ros2.py --headless
+cd /home/lion/isaac-go2-ros2
+./scripts/run_isaac_go2.sh --headless --device cuda:0
 ```
 
-The default `cfg/sim.yaml` keeps `sensor.enable_lidar` and `sensor.enable_camera` disabled. This verifies the base robot simulation and ROS2 motion topics first.
-
-In another terminal, check whether ROS2 topics are published:
+If CUDA is unavailable, run the same smoke test on CPU:
 
 ```bash
-source /opt/ros/humble/setup.bash
-ros2 topic list
-ros2 topic echo /unitree_go2/odom
+cd /home/lion/isaac-go2-ros2
+./scripts/run_isaac_go2.sh --headless --device cpu
 ```
 
-Send a simple velocity command:
+A successful launch prints:
+
+```text
+[isaac_go2_ros2] ROS2 bridge initialized.
+[isaac_go2_ros2] Environment reset complete; entering simulation loop.
+```
+
+### GUI mode
 
 ```bash
-source /opt/ros/humble/setup.bash
-ros2 topic pub /unitree_go2/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" --once
+cd /home/lion/isaac-go2-ros2
+./scripts/run_isaac_go2.sh --gui --device cuda:0 sensor.enable_lidar=False sensor.enable_camera=False
 ```
 
-To run the full GUI/sensor mode after the base smoke test passes, enable the corresponding sensor flags in `cfg/sim.yaml` and run:
-
-```bash
-conda activate isaaclab
-python isaac_go2_ros2.py
-```
 Once the simulation is loaded, the robot can be teleoperated by the keyboard:
 
-```W```: Forward, ```A```: Left, ```S```: Backward, ```D```: Right, ```Z```: Left Turn, ```C```: Right Turn.
+`W`: Forward, `A`: Left, `S`: Backward, `D`: Right, `Z`: Left Turn, `C`: Right Turn.
+
+You can also command the robot from ROS2:
+
+```bash
+source /opt/ros/humble/setup.bash
+export ROS_DOMAIN_ID=0
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+ros2 topic pub /unitree_go2/cmd_vel geometry_msgs/msg/Twist \
+"{linear: {x: 0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" --once
+```
+
+## ROS2 Topics and Visualization
+
+After launching the simulation, visualize ROS2 data in RViz2 from a separate ROS2 terminal:
+
+```bash
+source /opt/ros/humble/setup.bash
+export ROS_DOMAIN_ID=0
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+rviz2 -d /home/lion/isaac-go2-ros2/rviz/go2.rviz
+```
+
+![rviz](https://github.com/user-attachments/assets/946b6a31-b52a-4153-b337-846087fc2b7d)
+
+Here is a categorized list of ROS 2 topics available for the Unitree Go2:
+
+**Command and Control**
+- `/unitree_go2/cmd_vel`: topic to send velocity commands to the robot for motion control.
+
+**Front Camera**
+- `/unitree_go2/front_cam/color_image`: publishes RGB color images captured by the front camera.
+- `/unitree_go2/front_cam/depth_image`: publishes depth images from the front camera.
+- `/unitree_go2/front_cam/semantic_segmentation_image`: publishes semantic segmentation ID images from the front camera.
+- `/unitree_go2/front_cam/semantic_segmentation_label`: publishes semantic label metadata.
+- `/unitree_go2/front_cam/info`: publishes camera intrinsic parameters.
+
+**LIDAR**
+- `/unitree_go2/lidar/point_cloud`: publishes a point cloud generated by the robot's RTX LiDAR sensor.
+
+**Odometry and Localization**
+- `/unitree_go2/odom`: publishes odometry data, including position, orientation, and velocity.
+- `/unitree_go2/pose`: publishes the current pose of the robot in the world frame.
+- `/tf` and `/tf_static`: publish dynamic and static transforms.
+- `/clock`: publishes simulation time when the ROS clock graph is available.
+
+### Full sensor launch
+
+The following command enables LiDAR, RGB, depth, semantic segmentation, and camera info together:
+
+```bash
+cd /home/lion/isaac-go2-ros2
+./scripts/run_isaac_go2.sh --gui --device cuda:0 --enable-cameras \
+  env_name=warehouse \
+  sensor.enable_lidar=True \
+  sensor.enable_camera=True \
+  sensor.color_image=True \
+  sensor.depth_image=True \
+  sensor.semantic_segmentation=True
+```
+
+Validated rates on an RTX 5060 laptop GPU:
+
+- LiDAR point cloud: about 12.7 Hz.
+- RGB image: about 25 Hz.
+- Depth image: about 25 Hz.
+- Semantic segmentation image: about 25 Hz.
+
+The Isaac Python 3.11 process intentionally skips `/unitree_go2/front_cam/semantic_segmentation_image_vis` if `cv_bridge` is unavailable. The raw semantic ID image and label topic are still published. If a colorized semantic visualization topic is needed, run that conversion as a separate ROS2 Humble node outside the Isaac process.
+
+## Simulation Environments & Settings
+
+The simulation environments and settings can be changed in `cfg/sim.yaml` or with Hydra command-line overrides.
+
+#### Launch different simulation environments
+
+The current implementation contains several environments in `env/sim_env.py`. To change the environment, set `env_name`:
+
+```bash
+./scripts/run_isaac_go2.sh --gui --device cuda:0 env_name=full-warehouse sensor.enable_lidar=False sensor.enable_camera=False
+```
+
+Current available environments:
+
+- `warehouse`: a simple warehouse environment in Isaac Sim.
+- `warehouse-forklifts`: a warehouse environment with forklifts.
+- `warehouse-shelves`: a warehouse environment with shelves.
+- `full-warehouse`: a full warehouse environment containing everything.
+- `obstacle-sparse`: a sparse obstacle field environment.
+- `obstacle-medium`: a medium obstacle field environment.
+- `obstacle-dense`: a dense obstacle field environment.
+
+All seven environments have been validated to enter the Isaac Sim 5.1 simulation loop on this branch.
+
+#### Launch multiple robots in the environment
+
+This repository supports running multiple Unitree Go2 robots by changing `num_envs`:
+
+```bash
+cd /home/lion/isaac-go2-ros2
+./scripts/run_isaac_go2.sh --gui --device cuda:0 \
+  num_envs=2 \
+  sensor.enable_lidar=False \
+  sensor.enable_camera=False
+```
+
+For two robots, ROS2 topics are namespaced per robot:
+
+```text
+/unitree_go2_0/cmd_vel
+/unitree_go2_0/odom
+/unitree_go2_0/pose
+/unitree_go2_1/cmd_vel
+/unitree_go2_1/odom
+/unitree_go2_1/pose
+```
 
 ## Code Reading Guide
 
 Suggested reading order for this branch:
 
+- `scripts/run_isaac_go2.sh`: safe launcher for the local Isaac Sim 5.1 / Isaac Lab 2.3 runtime.
 - `isaac_go2_ros2.py`: main entry point. It launches Isaac Sim, creates the Go2 environment, adds optional sensors, starts ROS2, and runs the simulation loop.
-- `cfg/sim.yaml`: runtime configuration. This controls environment name, number of robots, frequency, camera/lidar flags, and headless-friendly defaults.
+- `cfg/sim.yaml`: runtime configuration. This controls environment name, number of robots, frequency, camera/lidar flags, and GUI defaults.
 - `go2/go2_env.py`: Isaac Lab environment definition for the Unitree Go2 robot, observations, actions, command interface, and simulation settings.
 - `go2/go2_ctrl.py`: low-level RL policy loading and `/cmd_vel` command handling.
-- `go2/go2_sensors.py`: optional camera and RTX lidar creation.
-- `ros2/go2_ros2_bridge.py`: ROS2 publishers/subscribers for command, odometry, pose, camera, semantic segmentation, and lidar topics.
+- `go2/go2_sensors.py`: optional camera and RTX LiDAR creation.
+- `ros2/go2_ros2_bridge.py`: ROS2 publishers/subscribers for command, odometry, pose, camera, semantic segmentation, and LiDAR topics.
 - `env/sim_env.py`: warehouse and obstacle environment loading.
 
-
-https://github.com/user-attachments/assets/7abb41fd-26f7-4e5d-bc7f-98ee10467a6a
-
-
-## ROS2 Topics and Visualization
-After launching the simulation, the ROS2 data can be visualized in ```Rviz2```:
-```
-rviz2 -d /path/to/isaac-go2-ros2/rviz/go2.rviz
-```
-![rviz](https://github.com/user-attachments/assets/946b6a31-b52a-4153-b337-846087fc2b7d)
-
-Here is a categorized list of ROS 2 topics available for the Unitree Go2:
-
-**Command and Control**  
-- `/unitree_go2/cmd_vel`:  Topic to send velocity commands to the robot for motion control.
-
-**Front Camera**  
-- `/unitree_go2/front_cam/color_image`: Publishes RGB color images captured by the front camera.
-- `/unitree_go2/front_cam/depth_image`: Publishes depth images from the front camera.
-- `unitree_go2/front_cam/semantic_segmentation_image`: Publishes semantic segmentation images from the front camera.
-- `/unitree_go2/front_cam/info`: Publishes camera information, including intrinsic parameters.
-
-**LIDAR**  
-- `/unitree_go2/lidar/point_cloud`:  Publishes a point cloud generated by the robot's LIDAR sensor.
-
-**Odometry and Localization**  
-- `/unitree_go2/odom`:  Publishes odometry data, including the robot's position, orientation, and velocity.
-- `/unitree_go2/pose`:  Publishes the current pose of the robot in the world frame.
-
-
-## Simulation Environments & settings
-The simulation environments and settings can be changed in ```isaac-go2-ros2/cfg/sim.yaml``` config file. 
-
-#### Launch different simulation environments
-The current implementation contains a few environments which can be found on ```isaac-go2-ros2/env/sim_env.py```, which follows standard Isaac Sim method for importing USD environments. To change the environment, please change the ```env_name``` in the config file ```isaac-go2-ros2/cfg/sim.yaml```. Current available environments:
-- ```warehouse```: A simple warehouse environment in Isaac Sim.
-- ```warehouse-forklifts```: A warehouse environment with forklifts.
-- ```warehouse-shelves```: A warehouse environment with shelves.
-- ```full-warehouse```: A full warehouse environment containing everything.
-- ```obstacle-sparse```: A sparse obstacle field environment.
-- ```obstacle-medium```: A  medium obstacle field environment.
-- ```obstacle-dense```: A dense obstacle field environment.
-
-
-#### Launch multiple robots in the environment
-This repository supports running multiple Unitree Go2 robots and the number of robots can by changed by the ```num_envs``` parameter in the config file ```isaac-go2-ros2/cfg/sim.yaml```. The following shows an example video.
-
-https://github.com/user-attachments/assets/47ef05c1-5124-4feb-afc8-a3f2c306a212
-
-
-
-
 ## Example Usage
-The video shows an example of using this repo with an [RL agent](https://github.com/Zhefan-Xu/NavRL) to achieve navigation and collision avoidance:
 
+The video shows an example of using this repo with an [RL agent](https://github.com/Zhefan-Xu/NavRL) to achieve navigation and collision avoidance:
 
 https://github.com/user-attachments/assets/ccc986c6-bf94-41fe-a4d5-3417ce8b3384
 
 ## Acknowledgement
+
 The Go2 controller is based on the RL controller implemented in [go2_omniverse](https://github.com/abizovnuralem/go2_omniverse).
-
-
-
-
-
