@@ -1,4 +1,4 @@
-# Isaac Sim Unitree Go2 ROS2
+# Isaac Sim 5.1 版 Go2 ROS2 迁移说明
 
 [![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://docs.python.org/3/whatsnew/3.11.html)
 [![ROS2](https://img.shields.io/badge/ROS2-Humble-orange.svg)](https://docs.ros.org/en/humble/index.html)
@@ -6,134 +6,124 @@
 [![IsaacLab](https://img.shields.io/badge/IsaacLab-2.3.0-purple.svg)](https://isaac-sim.github.io/IsaacLab/)
 [![Linux platform](https://img.shields.io/badge/platform-Ubuntu--22.04-green.svg)](https://releases.ubuntu.com/22.04/)
 
-This branch supports Isaac Sim 5.1.0 and Isaac Lab 2.3.0.
+这个分支是基于原项目 `isaac-go2-ros2` 做的本地环境适配版本，目标是在 Ubuntu 22.04 + Isaac Sim 5.1.0 + Isaac Lab 2.3.0 + ROS2 Humble + RTX 50 系显卡环境下，尽量保留原 `isaacsim-4.5` 分支的核心功能。
 
-Please check the `isaacsim-4.5` branch for the original Isaac Sim 4.5 / Isaac Lab 2.1 version.
+当前对应分支：
 
-Welcome to the Isaac Sim Unitree Go2 repository! This repository provides a Unitree Go2 quadruped robot simulation, leveraging the Isaac Sim / Isaac Lab framework and integrating with a ROS 2 interface. It offers a flexible platform for testing navigation, decision-making, sensors, and other autonomous tasks in different scenarios.
+- `isaacsim-5.1`
 
-<table>
-  <tr>
-    <td><img src="media/sim-demo1.gif" style="width: 100%;"></td>
-    <td><img src="media/sim-demo2.gif" style="width: 100%;"></td>
-  </tr>
-</table>
+原始参考分支：
 
-## Installation Guide
+- `isaacsim-4.5`
 
-**Step 0:** Install [Isaac Sim 5.1.0](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/download.html) and extract it to `${HOME}/isaacsim`.
+这份 README 更偏向迁移记录和阶段总结，主要用于说明这次适配做了什么、验证到了什么程度，以及和原分支相比有哪些差异。
 
-**Step I:** Install [Isaac Lab 2.3.0](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/binaries_installation.html).
+## 迁移目标
 
-**Step II:** Install [ROS2 Humble](https://docs.ros.org/en/humble/index.html).
+本次迁移的目标不是简单把版本号改成 5.1，而是尽量保留原项目的核心仿真与 ROS2 bridge 能力，包括：
 
-**Step III:** Activate the Isaac Lab conda environment. On the validated local machine this environment is named `lab`:
+- 通过 `/unitree_go2/cmd_vel` 控制 Go2 运动
+- 发布 `/odom`、`/pose`、`/tf`、`/clock`
+- 发布 RGB、depth、semantic segmentation、LiDAR 等传感器话题
+- 支持 RViz 可视化
+- 支持多机器人启动
+- 支持 GUI 与 headless 两种运行方式
+
+## 已验证环境
+
+本分支当前验证环境为：
+
+- Ubuntu 22.04
+- Isaac Sim 5.1.0
+- Isaac Lab 2.3.0
+- ROS2 Humble
+- Isaac 进程 Python 3.11
+- 系统 ROS2 Python 3.10
+- 本地验证使用的 conda 环境名：`lab`
+
+## 相比原 4.5 分支的主要改动
+
+这次适配不是直接升级依赖，而是针对本机环境做了几类关键修改：
+
+- 新增独立启动脚本 `scripts/run_isaac_go2.sh`
+- 明确隔离 Isaac Python 3.11 与系统 ROS2 Humble Python 3.10
+- 调整 headless 启动链路，避免系统 ROS Python 包污染 Isaac 进程
+- 适配 Isaac Sim 5.1 下的 ROS2 bridge 扩展加载方式
+- 适配 Isaac Sim 5.1 下 RTX LiDAR 的创建与点云提取逻辑
+- 将相机、LiDAR、semantic 相关依赖改为按需导入，方便定位问题
+- 更新 RViz 配置和传感器话题覆盖范围
+- 增加当前验证结果对应的截图素材
+
+## 当前功能状态
+
+已经验证通过的内容：
+
+- GUI 启动
+- headless 启动
+- 单机器人 `/cmd_vel`、`/odom`、`/pose`、`/tf`
+- LiDAR 点云
+- RGB 图像
+- depth 图像
+- CameraInfo
+- semantic segmentation 图像
+- semantic segmentation label 元数据
+- `num_envs=2` 多机器人
+- RViz 配置
+- 原项目 7 个环境都能进入仿真循环
+- 全传感器同时开启的启动路径
+
+目前与原分支仍有差异的点：
+
+- `/unitree_go2/front_cam/semantic_segmentation_image_vis` 没有在 Isaac 进程内稳定恢复
+- 还没有重新接回 NavRL 或其他外部导航 demo
+- 这条分支优先服务于当前本机环境，不是面向通用发布环境做的完整重构
+
+## 最重要的环境规则
+
+本分支最关键的一点是：
+
+- Isaac Sim / Isaac Lab 运行在 Python 3.11
+- 系统 ROS2 Humble 工具运行在 Python 3.10
+
+因此不要在启动 Isaac 仿真的终端里先执行：
 
 ```bash
-source /home/lion/miniconda3/etc/profile.d/conda.sh
-conda activate lab
+source /opt/ros/humble/setup.bash
 ```
 
-**Step IV:** Clone this repo:
+这样会把 Python 3.10 的 ROS 包混入 Python 3.11 的 Isaac 进程，容易导致 `rclpy`、`cv_bridge` 或共享库 ABI 冲突。
 
-```bash
-git clone https://github.com/coo7-lang/isaac-go2-ros2.git
-cd isaac-go2-ros2
-git checkout isaacsim-5.1-lab-2.3
-```
+推荐做法：
 
-## Important Environment Note
+- Isaac 终端：只用项目启动脚本
+- ROS2 终端：单独 `source /opt/ros/humble/setup.bash`
 
-Keep the Isaac Sim Python 3.11 process separate from the system ROS2 Humble Python 3.10 environment.
+当前提交的启动脚本就是按这个原则写的。
 
-- Isaac Sim / Isaac Lab process: use the `lab` conda environment and `/home/lion/isaacsim/setup_conda_env.sh`.
-- ROS2 CLI / RViz terminal: source `/opt/ros/humble/setup.bash` in a separate terminal.
+## 推荐启动方式
 
-Do **not** source `/opt/ros/humble/setup.bash` inside the Isaac Sim Python process. Mixing ROS2 Humble Python 3.10 packages into Isaac's Python 3.11 process can cause `rclpy`, `cv_bridge`, or shared-library ABI issues.
-
-The checked-in launcher follows this rule automatically.
-
-## Run Unitree Go2 Simulation
-
-### Headless smoke test
+推荐入口：
 
 ```bash
 cd /home/lion/isaac-go2-ros2
 ./scripts/run_isaac_go2.sh --headless --device cuda:0
 ```
 
-If CUDA is unavailable, run the same smoke test on CPU:
-
-```bash
-cd /home/lion/isaac-go2-ros2
-./scripts/run_isaac_go2.sh --headless --device cpu
-```
-
-A successful launch prints:
-
-```text
-[isaac_go2_ros2] ROS2 bridge initialized.
-[isaac_go2_ros2] Environment reset complete; entering simulation loop.
-```
-
-### GUI mode
+GPU + GUI 启动：
 
 ```bash
 cd /home/lion/isaac-go2-ros2
 ./scripts/run_isaac_go2.sh --gui --device cuda:0 sensor.enable_lidar=False sensor.enable_camera=False
 ```
 
-Once the simulation is loaded, the robot can be teleoperated by the keyboard:
-
-`W`: Forward, `A`: Left, `S`: Backward, `D`: Right, `Z`: Left Turn, `C`: Right Turn.
-
-You can also command the robot from ROS2:
+CPU headless smoke test：
 
 ```bash
-source /opt/ros/humble/setup.bash
-export ROS_DOMAIN_ID=0
-export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-ros2 topic pub /unitree_go2/cmd_vel geometry_msgs/msg/Twist \
-"{linear: {x: 0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" --once
+cd /home/lion/isaac-go2-ros2
+./scripts/run_isaac_go2.sh --headless --device cpu
 ```
 
-## ROS2 Topics and Visualization
-
-After launching the simulation, visualize ROS2 data in RViz2 from a separate ROS2 terminal:
-
-```bash
-source /opt/ros/humble/setup.bash
-export ROS_DOMAIN_ID=0
-export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-rviz2 -d /home/lion/isaac-go2-ros2/rviz/go2.rviz
-```
-
-![rviz](https://github.com/user-attachments/assets/946b6a31-b52a-4153-b337-846087fc2b7d)
-
-Here is a categorized list of ROS 2 topics available for the Unitree Go2:
-
-**Command and Control**
-- `/unitree_go2/cmd_vel`: topic to send velocity commands to the robot for motion control.
-
-**Front Camera**
-- `/unitree_go2/front_cam/color_image`: publishes RGB color images captured by the front camera.
-- `/unitree_go2/front_cam/depth_image`: publishes depth images from the front camera.
-- `/unitree_go2/front_cam/semantic_segmentation_image`: publishes semantic segmentation ID images from the front camera.
-- `/unitree_go2/front_cam/semantic_segmentation_label`: publishes semantic label metadata.
-- `/unitree_go2/front_cam/info`: publishes camera intrinsic parameters.
-
-**LIDAR**
-- `/unitree_go2/lidar/point_cloud`: publishes a point cloud generated by the robot's RTX LiDAR sensor.
-
-**Odometry and Localization**
-- `/unitree_go2/odom`: publishes odometry data, including position, orientation, and velocity.
-- `/unitree_go2/pose`: publishes the current pose of the robot in the world frame.
-- `/tf` and `/tf_static`: publish dynamic and static transforms.
-- `/clock`: publishes simulation time when the ROS clock graph is available.
-
-### Full sensor launch
-
-The following command enables LiDAR, RGB, depth, semantic segmentation, and camera info together:
+全传感器启动：
 
 ```bash
 cd /home/lion/isaac-go2-ros2
@@ -146,42 +136,67 @@ cd /home/lion/isaac-go2-ros2
   sensor.semantic_segmentation=True
 ```
 
-Validated rates on an RTX 5060 laptop GPU:
+成功启动时，日志中应出现：
 
-- LiDAR point cloud: about 12.7 Hz.
-- RGB image: about 25 Hz.
-- Depth image: about 25 Hz.
-- Semantic segmentation image: about 25 Hz.
-
-The Isaac Python 3.11 process intentionally skips `/unitree_go2/front_cam/semantic_segmentation_image_vis` if `cv_bridge` is unavailable. The raw semantic ID image and label topic are still published. If a colorized semantic visualization topic is needed, run that conversion as a separate ROS2 Humble node outside the Isaac process.
-
-## Simulation Environments & Settings
-
-The simulation environments and settings can be changed in `cfg/sim.yaml` or with Hydra command-line overrides.
-
-#### Launch different simulation environments
-
-The current implementation contains several environments in `env/sim_env.py`. To change the environment, set `env_name`:
-
-```bash
-./scripts/run_isaac_go2.sh --gui --device cuda:0 env_name=full-warehouse sensor.enable_lidar=False sensor.enable_camera=False
+```text
+[isaac_go2_ros2] ROS2 bridge initialized.
+[isaac_go2_ros2] Environment reset complete; entering simulation loop.
 ```
 
-Current available environments:
+## ROS2 验证方式
 
-- `warehouse`: a simple warehouse environment in Isaac Sim.
-- `warehouse-forklifts`: a warehouse environment with forklifts.
-- `warehouse-shelves`: a warehouse environment with shelves.
-- `full-warehouse`: a full warehouse environment containing everything.
-- `obstacle-sparse`: a sparse obstacle field environment.
-- `obstacle-medium`: a medium obstacle field environment.
-- `obstacle-dense`: a dense obstacle field environment.
+在单独的 ROS2 终端中执行：
 
-All seven environments have been validated to enter the Isaac Sim 5.1 simulation loop on this branch.
+```bash
+source /opt/ros/humble/setup.bash
+export ROS_DOMAIN_ID=0
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+ros2 topic list
+```
 
-#### Launch multiple robots in the environment
+已验证的核心话题：
 
-This repository supports running multiple Unitree Go2 robots by changing `num_envs`:
+- `/unitree_go2/cmd_vel`
+- `/unitree_go2/odom`
+- `/unitree_go2/pose`
+- `/tf`
+- `/tf_static`
+- `/clock`
+
+已验证的相机相关话题：
+
+- `/unitree_go2/front_cam/color_image`
+- `/unitree_go2/front_cam/depth_image`
+- `/unitree_go2/front_cam/semantic_segmentation_image`
+- `/unitree_go2/front_cam/semantic_segmentation_label`
+- `/unitree_go2/front_cam/info`
+
+已验证的 LiDAR 话题：
+
+- `/unitree_go2/lidar/point_cloud`
+
+速度指令示例：
+
+```bash
+source /opt/ros/humble/setup.bash
+export ROS_DOMAIN_ID=0
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+ros2 topic pub /unitree_go2/cmd_vel geometry_msgs/msg/Twist \
+"{linear: {x: 0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" --once
+```
+
+## RViz 与多机器人
+
+RViz 启动方式：
+
+```bash
+source /opt/ros/humble/setup.bash
+export ROS_DOMAIN_ID=0
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+rviz2 -d /home/lion/isaac-go2-ros2/rviz/go2.rviz
+```
+
+多机器人启动示例：
 
 ```bash
 cd /home/lion/isaac-go2-ros2
@@ -191,7 +206,7 @@ cd /home/lion/isaac-go2-ros2
   sensor.enable_camera=False
 ```
 
-For two robots, ROS2 topics are namespaced per robot:
+双机器人话题形式：
 
 ```text
 /unitree_go2_0/cmd_vel
@@ -202,25 +217,73 @@ For two robots, ROS2 topics are namespaced per robot:
 /unitree_go2_1/pose
 ```
 
-## Code Reading Guide
+## 当前已知限制
 
-Suggested reading order for this branch:
+`semantic_segmentation_image_vis` 不是这次迁移中已稳定恢复的核心功能。
 
-- `scripts/run_isaac_go2.sh`: safe launcher for the local Isaac Sim 5.1 / Isaac Lab 2.3 runtime.
-- `isaac_go2_ros2.py`: main entry point. It launches Isaac Sim, creates the Go2 environment, adds optional sensors, starts ROS2, and runs the simulation loop.
-- `cfg/sim.yaml`: runtime configuration. This controls environment name, number of robots, frequency, camera/lidar flags, and GUI defaults.
-- `go2/go2_env.py`: Isaac Lab environment definition for the Unitree Go2 robot, observations, actions, command interface, and simulation settings.
-- `go2/go2_ctrl.py`: low-level RL policy loading and `/cmd_vel` command handling.
-- `go2/go2_sensors.py`: optional camera and RTX LiDAR creation.
-- `ros2/go2_ros2_bridge.py`: ROS2 publishers/subscribers for command, odometry, pose, camera, semantic segmentation, and LiDAR topics.
-- `env/sim_env.py`: warehouse and obstacle environment loading.
+主要原因：
 
-## Example Usage
+- Isaac Sim 5.1 进程使用 Python 3.11
+- 本机 ROS2 Humble 的 `cv_bridge` 绑定在 Python 3.10 环境
 
-The video shows an example of using this repo with an [RL agent](https://github.com/Zhefan-Xu/NavRL) to achieve navigation and collision avoidance:
+当前做法：
 
-https://github.com/user-attachments/assets/ccc986c6-bf94-41fe-a4d5-3417ce8b3384
+- 保留 raw semantic ID image
+- 保留 semantic label metadata
+- 当 Python 3.11 环境下不可用 `cv_bridge` 时，不在 Isaac 进程内生成彩色 semantic 可视化图像
 
-## Acknowledgement
+如果后续确实需要彩色 semantic 可视化，更合适的做法是单独写一个外部 ROS2 Humble 节点来完成，而不是继续塞进 Isaac 进程。
 
-The Go2 controller is based on the RL controller implemented in [go2_omniverse](https://github.com/abizovnuralem/go2_omniverse).
+## 已验证场景
+
+当前已验证可进入仿真循环的场景：
+
+- `warehouse`
+- `warehouse-forklifts`
+- `warehouse-shelves`
+- `full-warehouse`
+- `obstacle-sparse`
+- `obstacle-medium`
+- `obstacle-dense`
+
+示例：
+
+```bash
+./scripts/run_isaac_go2.sh --gui --device cuda:0 env_name=full-warehouse sensor.enable_lidar=False sensor.enable_camera=False
+```
+
+## 截图
+
+Isaac Sim GUI：
+
+![Isaac GUI](docs/images/isaac_gui_go2.png)
+
+RViz 全传感器：
+
+![RViz](docs/images/rviz_all_sensors.png)
+
+多机器人：
+
+![Multi Robot](docs/images/multi_robot.png)
+
+## 关键文件
+
+和这次迁移最相关的文件：
+
+- `scripts/run_isaac_go2.sh`：适用于本机 Isaac Sim 5.1 / Isaac Lab 2.3 的安全启动脚本
+- `isaac_go2_ros2.py`：主入口与运行时初始化
+- `go2/go2_ctrl.py`：低层控制策略与 `/cmd_vel` 接口
+- `go2/go2_sensors.py`：相机与 LiDAR 创建
+- `ros2/go2_ros2_bridge.py`：ROS2 发布与订阅桥接
+- `env/sim_env.py`：场景加载与 semantic 标注路径
+- `rviz/go2.rviz`：当前验证通过的 RViz 配置
+
+## 总结
+
+从功能角度看，这条分支已经可以视为把原 `isaacsim-4.5` 分支的核心仿真与 ROS2 bridge 能力，迁移到了 Isaac Sim 5.1 / Isaac Lab 2.3 的本机环境中。
+
+剩下更像发布前的收尾工作，而不是核心迁移未完成：
+
+- README 继续精修
+- 如果确实需要，再补外部 semantic 可视化节点
+- 如果后续进入下一阶段，再接回 navigation / agent demo
