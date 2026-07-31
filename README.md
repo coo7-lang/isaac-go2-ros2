@@ -262,9 +262,6 @@ RViz 全传感器：
 
 ![RViz](docs/images/rviz_all_sensors.png)
 
-多机器人：
-
-![Multi Robot](docs/images/multi_robot.png)
 
 ## 关键文件
 
